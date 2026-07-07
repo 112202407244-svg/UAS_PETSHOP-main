@@ -12,7 +12,7 @@ class Order extends Model
                     ON o.user_id = u.id
                 ORDER BY o.created_at DESC";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->db->getConnection()->prepare($sql);
         $stmt->execute();
 
         return $stmt->fetchAll();
@@ -20,7 +20,7 @@ class Order extends Model
 
     public function getByUser($userId)
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             SELECT *
             FROM orders
             WHERE user_id = ?
@@ -34,7 +34,7 @@ class Order extends Model
 
     public function find($id)
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             SELECT
                 o.*,
                 u.name,
@@ -52,7 +52,7 @@ class Order extends Model
 
     public function getDetails($orderId)
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             SELECT *
             FROM order_details
             WHERE order_id = ?
@@ -67,7 +67,7 @@ class Order extends Model
     {
         try {
 
-            $this->db->beginTransaction();
+            $this->db->getConnection()->beginTransaction();
 
             $orderCode = "ORD-" . date('YmdHis');
 
@@ -91,7 +91,7 @@ class Order extends Model
             VALUES
             (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->db->getConnection()->prepare($sql);
 
             $stmt->execute([
 
@@ -112,11 +112,11 @@ class Order extends Model
 
             ]);
 
-            $orderId = $this->db->lastInsertId();
+            $orderId = $this->db->getConnection()->lastInsertId();
 
             foreach ($cartItems as $item) {
 
-                $detail = $this->db->prepare("
+                $detail = $this->db->getConnection()->prepare("
                     INSERT INTO order_details
                     (
                         order_id,
@@ -141,7 +141,7 @@ class Order extends Model
 
                 ]);
 
-                $stock = $this->db->prepare("
+                $stock = $this->db->getConnection()->prepare("
                     UPDATE products
                     SET stock = stock - ?
                     WHERE id = ?
@@ -154,7 +154,7 @@ class Order extends Model
 
             }
 
-            $cart = $this->db->prepare("
+            $cart = $this->db->getConnection()->prepare("
                 DELETE FROM carts
                 WHERE user_id = ?
             ");
@@ -163,13 +163,15 @@ class Order extends Model
                 $data['user_id']
             ]);
 
-            $this->db->commit();
+            $this->db->getConnection()->commit();
 
             return $orderId;
 
         } catch (Exception $e) {
 
-            $this->db->rollBack();
+            if ($this->db->getConnection()->inTransaction()) {
+                $this->db->getConnection()->rollBack();
+            }
 
             return false;
 
@@ -178,7 +180,7 @@ class Order extends Model
 
     public function updateStatus($id, $status)
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             UPDATE orders
             SET status = ?
             WHERE id = ?
@@ -192,7 +194,7 @@ class Order extends Model
 
     public function delete($id)
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             DELETE FROM orders
             WHERE id = ?
         ");
@@ -202,7 +204,7 @@ class Order extends Model
 
     public function totalOrders()
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             SELECT COUNT(*) AS total
             FROM orders
         ");
@@ -214,7 +216,7 @@ class Order extends Model
 
     public function totalRevenue()
     {
-        $stmt = $this->db->prepare("
+        $stmt = $this->db->getConnection()->prepare("
             SELECT SUM(total) AS revenue
             FROM orders
             WHERE status != 'cancelled'
@@ -226,4 +228,3 @@ class Order extends Model
     }
 
 }
-
